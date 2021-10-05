@@ -46,7 +46,7 @@ contract DeepFreeze {
      }
      
      function deposit() public payable onlyOwner { 
-         
+         // accept deposits 
      } 
      
       function getBalance() public view returns(uint){
