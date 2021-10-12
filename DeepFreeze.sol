@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 
 contract CreateFreezer {
     
-  address public creatorOwner;  // public state variable automatically has getter function 
+  address public creatorOwner;  // public state variable automatically has getter function
   DeepFreeze[] public deployedFreezer; // public array automatically has getter function 
+  mapping(address => DeepFreeze[]) public userFreezer;
 
   constructor(){ 
    creatorOwner = msg.sender; 
@@ -14,8 +15,9 @@ contract CreateFreezer {
   
   function createFreezer(string memory hint_, bytes32 answer_) public { 
     DeepFreeze new_freezer_address = new DeepFreeze(msg.sender, hint_, answer_);
-    // pass caller to DeepFreeze constructor as eoa; makes them owner of a their freezer 
-    deployedFreezer.push(new_freezer_address); // track these freezers
+    // pass caller to DeepFreeze constructor as eoa; makes them owner of a their freezer
+    userFreezer[msg.sender].push(new_freezer_address); // track freezers at the owner level
+    deployedFreezer.push(new_freezer_address); 
   } 
     
 } 
@@ -27,7 +29,6 @@ contract DeepFreeze {
      bytes32 internal answer; // only this contract can see this. 
      uint public launchblock; // block the freezer was locked at.
      uint public blocklock; // optional, lock the withdraw function for a certain number of blocks. 
-
 
      constructor(address eoa, string memory hint_, bytes32 answer_){  // see createFreezer
       owner = payable(eoa); //  owner is freezer creator as payable
@@ -60,8 +61,8 @@ contract DeepFreeze {
          return(answer);
      }
      
-     function deposit() public payable onlyOwner { 
-         // accept deposits 
+     function deposit() public payable { 
+         // accept deposits from anyone
      } 
      
       function getBalance() public view returns(uint){
