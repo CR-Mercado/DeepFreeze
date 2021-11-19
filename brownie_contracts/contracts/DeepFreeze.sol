@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 // DeepFreeze V0
 
+
 contract DeepFreezeFactory {
     address public creatorOwner; // public state variable automatically has getter function
     DeepFreeze[] public deployedFreezer; // public array automatically has getter function
