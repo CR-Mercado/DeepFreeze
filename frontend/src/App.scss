@@ -30,6 +30,18 @@ body {
   background: #444444;
 }
 
+.wallet-info {
+  align-items: center;
+  display: flex;
+  position: fixed;
+  right: 10px;
+  top: 10px;
+
+  .connect-wallet {
+    margin-left: 10px;
+  }
+}
+
 
 .form {
   background: $form-bg;
