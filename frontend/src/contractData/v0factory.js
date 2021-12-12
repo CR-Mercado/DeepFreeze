@@ -1,4 +1,4 @@
-const abi = [
+export const abi = [
 	{
 		"inputs": [
 			{
@@ -80,4 +80,14 @@ const abi = [
 	}
 ];
 
-export default abi;
+export const addresses = { // TODO extend to other chains
+	local: "0x426Ea59829bD35c262A0e8F1a2d8A23e35CbB7E8",
+	kovan: "0x84BeC65FAdd027f86A4D20058A5FBE12EC4362DA",
+	rinkeby: "0xd271f1eafe25a46da6c1c00d38bc443d940e6bc5",
+	main: "", // TBD
+}
+
+export default {
+	abi,
+	addresses,
+}
