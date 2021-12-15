@@ -33,7 +33,6 @@ def withdraw_Fund(freezer):
 
 def main():
     freezer_address = createFreezer()
-    # get the address of the deployed freezer
     with open("DeepFreeze_abi.json") as f:
         abi = json.load(f)
     freezer = Contract.from_abi("freezer", freezer_address, abi)

@@ -5,6 +5,25 @@
         "type": "constructor"
     },
     {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "from",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "freezerAddress",
+                "type": "address"
+            }
+        ],
+        "name": "FreezerDeployed",
+        "type": "event"
+    },
+    {
         "inputs": [
             {
                 "internalType": "string",
