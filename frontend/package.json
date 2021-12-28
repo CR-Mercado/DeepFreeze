@@ -2,6 +2,7 @@
   "name": "deepfreezesite",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://charliedao-eth.github.io/DeepFreeze/build",
   "dependencies": {
     "@looker/components": "^2.8.4",
     "@testing-library/jest-dom": "^5.11.4",
