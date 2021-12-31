@@ -29,7 +29,7 @@ run ``` brownie run scripts/deploy_DeepFreeze.py --network kovan ```
 2) If you need the ABI of the contracts (already present in the repo), run ``` brownie run scripts/get_ABI.py ```
 
 At this point, the factory is deployed and you can call the CreateFreezer method to deployed new freezers.
-DeepFreezeFactory is already deployed on kovan testnet (``` 0x84BeC65FAdd027f86A4D20058A5FBE12EC4362DA ```) or rinkeby testnet(``` 0x256c9Dc8Cb467F5234C5e10F40A554bB8F66826F ```)
+DeepFreezeFactory is already deployed on kovan testnet (``` 0x11d64B00D8A4DF60D4330b1E6F05524736bAd030 ```) or rinkeby testnet(``` 0x5DeBdBe7AfF3A255b1a27Ae395EAb161dc5E5254 ```)
 
 
 3) If you want to deploy a test freezer run ``` brownie run scripts/createFreezer.py --network kovan ```
