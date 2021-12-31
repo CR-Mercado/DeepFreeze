@@ -1,0 +1,241 @@
+---
+title: "frETH Simulations"
+author: "CharlieDAO"
+date: "12/30/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warn = FALSE, message = FALSE)
+```
+
+## Intro 
+
+Deep Freeze provides intrinsic yield for long term holdings of blockchain 
+native assets (e.g., ETH on Ethereum). This report details a simple simulation
+of random vaults, deposits, time-periods of lock, and patience profiles of 
+vault owners to understand potential reactions to the Deep Freeze tokenomics
+model as described in Tokenized Patience - the Deep Freeze Intrinsic Yield 
+white paper. Please see this paper for more on the theory of intrinsic yield
+and tokenized patience.
+
+## Plan 
+
+There are `n` vaults each owned by a single individual for simplicity's sake.
+Each vault has: 
+
+    * a random amount of ETH deposited
+    * a random year of deposit (2021 - 2025)
+    * a random amount of time (1 - 5 years) that deposit is locked
+    * the resulting amount of frozen ETh "frETH" minted via that lock
+    * the amount of time that must pass (in years) for a vault to be "breakeven" (67% of lock time)
+    * Cost breakdrowns (in frETH) for withdrawing from the freezer at 5 points in time: 
+        - Immediate withdrawal (i.e. mint amount + 20% frETH penalty)
+        - Early withdrawal (mint amount + 10% frETH penalty)
+        - Breakeven (mint amount, no frETH penalty)
+        - Mostly through lock time (50% of mint amount, i.e. a frETH profit)
+        - Completed lock time (can withdraw without returning any mint amount, i.e. 100% frETH profit)
+        
+Each vault is assigned a random `profile` indicating a *patience profile* of the vault owner.
+This profile matches the cost breakdown as described above (i.e. a `completer` withdraws
+without any frETH rebate or penalty, while `mostly` requires a 50% rebate but no penalty, etc.).
+    
+5 different market profiles probabilities are simulated to understand potential frETH
+supply amounts and fees paid to FRZ token stakers (again, see the white paper for more 
+details on tokenomics): 
+
+1. Market has Extreme impatience
+2. Moderate impatience
+3. Balanced 
+4. Moderate patience
+5. Extreme patience 
+
+Each market profile is analyzed as an evolving time series where each of 
+5 time periods of analysis (2022 - 2026) are reviewed. 
+
+I.e., in 2022, analysis is done on vaults with a deposit of 2021 OR 2022, 
+and depending on the vault patience profile and deposit time, the vaults
+are live (vault owner has an ongoing deposit) or completed (vault owner 
+either withdrew early based on their patience profile or completed their 
+deposit after the deposit time specified).  
+
+For each time period market profile, the following metrics are assessed: 
+
+    1. Total ETH deposited
+    2. Total frETH minted (ETH deposits * ETH time locks)
+    3. Total frETH penalties paid
+    4. Total frETH penalties burned (50% of penalties paid) = frETH penalties paid to stakers
+    5. Outstanding frETH supply (minted - burned)
+    6. Outstanding frETH supply (minted - 50% penalties paid) per ETH deposited
+    7. Outstanding frETH supply / frETH minted
+    8. ETH paid to FRZ stakers (0.5% of ETH deposited by all except those who complete their lock)
+    
+Analysis will focus on the flows of frETH mints & burns and their overall effect on the frETH supply.
+
+
+## Vault Simulation 
+
+Given 100,000 vaults of (truncated) normally distributed amounts of 1+ eth deposited 
+for (truncated) normally distributed times of 1+ years, we see the following 
+distributions.
+
+```{r}
+library(ggplot2)
+set.seed(4) # reproducible randomness
+n = 100000 # 100000 vaults
+initial_penalty = 0.2
+frETH_penalty_burn_rate = 0.5 
+
+random_id <- function(){
+  # generate 1 of 250M+ potential random IDs
+  paste0(
+    sample(x = c(LETTERS, 0:9),size = 10, replace = TRUE),
+    collapse = "")
+}
+
+vaults <- data.frame(
+  vault_id = replicate(n = n, random_id()),
+  deposit = abs(floor(rnorm(n)*10)) + 1,
+  deposit_year = sample(x = 2021:2025, size = n, replace = TRUE),
+  time = abs(floor(rnorm(n))) + 1
+)
+
+make_density <- function(x, bw = 1, xlab = "Amount of ETH Deposited"){ 
+  ggplot(data = data.frame(val = x), aes(x = x)) +
+    geom_histogram(aes(y=..density..), binwidth = bw, 
+                   alpha=0.5, 
+                position="identity") + 
+    geom_density() + 
+    theme_classic() +
+    xlab(label = xlab)
+  }
+
+make_density(vaults$deposit)
+
+make_density(vaults$time, bw = 0.1, xlab = "Amount of Time Locked")
+
+```
+
+Locking ETH mints frETH as a function of `deposit` amount * `time` locked and 
+has a similar distribution:
+
+```{r}
+vaults$breakeven_time <- vaults$time * .67
+
+vaults$mint <- vaults$deposit*vaults$time
+vaults$initial_cost <- vaults$mint* ( 1 + initial_penalty) 
+vaults$early_cost <- vaults$mint* ( 1 + 0.5*initial_penalty)
+vaults$mostly_cost <- vaults$mint*0.5
+
+make_density(vaults$mint, bw = 5, xlab = "Amount of frETH minted by Vault")
+
+```
+
+A sneak peek of the resulting vault table with cost breakdowns is provided here:
+
+```{r}
+knitr::kable(head(vaults, 10))
+```
+
+## Patience Profiles
+
+```{r}
+
+# workhouse functions 
+profile <- c("early","breakeven","mostly","completer")
+vault_check <- function(vault_row){
+  
+  minted = vault_row$mint
+  
+ cost_to_withdraw <- switch(vault_row$profile, 
+        early = vault_row$early_cost,
+        breakeven = vault_row$mint,
+        mostly = vault_row$mostly_cost,
+        completer = 0
+        )
+  
+ marginal_supply = minted - cost_to_withdraw 
+ 
+ return(marginal_supply)
+}
+get_supply_effect <- function(vaults){ 
+  
+supply_effect <- rep(0,n)
+for( i in 1:nrow(vaults) ){ 
+  supply_effect[i] <- vault_check(vaults[i, ])
+}
+vaults$supply_effect <- supply_effect 
+
+return(vaults)  
+}
+get_metrics <- function(vaults){ 
+  #'  1. Total ETH deposited (any amount of time)
+  #'  2. Total frETH minted (ETH deposits * ETH time locks)
+  #'  3. Total frETH penalties paid
+  #'  4. Total frETH penalties burned 
+  #'  5. Outstanding frETH supply (minted - burned)
+  #'  6. Outstanding frETH supply (minted - burned) per ETH deposited
+  #'  7. Outstanding frETH supply / frETH minted
+  #'  8. ETH paid to FRZ stakers (0.5% of ETH deposited by all except those who complete their lock)
+    
+  tbl <- data.frame(
+    "ETH Deposited" = sum(vaults$deposit), 
+    "frETH Minted" = sum(vaults$mint), 
+    "frETH Penalties Paid" = -sum( vaults[vaults$supply_effect < 0, "supply_effect"] ),
+    "frETH Penalties Burned" = {
+      -frETH_penalty_burn_rate * sum( vaults[vaults$supply_effect < 0, "supply_effect"] )
+      },
+    "frETH Supply" = { 
+      # mint - burn // here mint + 1/2 burn (which is already negative)
+      sum(vaults$mint) + 
+        frETH_penalty_burn_rate * sum( vaults[vaults$supply_effect < 0, "supply_effect"] )
+      },
+    "frETH supply per ETH deposited" = { 
+      (sum(vaults$mint) + 
+         frETH_penalty_burn_rate*sum( vaults[vaults$supply_effect < 0, "supply_effect"] )) / 
+        sum(vaults$deposit)
+      },
+    "frETH supply per frETH Minted" = { 
+      (sum(vaults$mint) + frETH_penalty_burn_rate * sum( vaults[vaults$supply_effect < 0, "supply_effect"] )) / 
+        sum(vaults$mint)
+      },
+    "ETH Fees Paid" = 0.0025 * sum(vaults[vaults$profile!= "completer", "deposit"]),
+    check.names = FALSE, 
+    row.names = NULL
+  )
+
+  return( tbl )
+  }
+
+```
+
+### Extreme Impatience 
+
+Extreme impatience is characterized by: 
+
+70% of vaults withdrawing prior to their breakeven date ("early")
+15% of vaults withdrawing exactly at breakeven ("breakeven")
+10% of vaults withdrawing near completion ("mostly")
+5% of vaults withdrawing upon completion
+
+The resulting metrics are provided here:
+
+```{r}
+# reproducibility set above - run entire markdown at once 
+
+extreme_impatience <- vaults
+extreme_impatience$profile <- sample(x = profile, 
+                                  size = n,
+                                  replace = TRUE,
+                                  prob = c(0.70,
+                                           0.15,
+                                           0.10,
+                                           0.05))
+extreme_impatience <- get_supply_effect(extreme_impatience)
+
+knitr::kable(get_metrics(extreme_impatience))
+
+```
+
